@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flumine.Tests", "Flumine.Te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flumine.Mongodb", "Flumine.Mongodb\Flumine.Mongodb.csproj", "{CBC023F8-A9A0-4923-937A-2BCD971A3EEF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlumineDemo", "FlumineDemo\FlumineDemo.csproj", "{972B4C91-F96D-44D4-ABB0-5816E8E68C57}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{CBC023F8-A9A0-4923-937A-2BCD971A3EEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CBC023F8-A9A0-4923-937A-2BCD971A3EEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CBC023F8-A9A0-4923-937A-2BCD971A3EEF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{972B4C91-F96D-44D4-ABB0-5816E8E68C57}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{972B4C91-F96D-44D4-ABB0-5816E8E68C57}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{972B4C91-F96D-44D4-ABB0-5816E8E68C57}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{972B4C91-F96D-44D4-ABB0-5816E8E68C57}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
