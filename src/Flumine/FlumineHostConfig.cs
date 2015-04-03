@@ -1,7 +1,11 @@
-﻿namespace Flumine
+﻿using System;
+
+namespace Flumine
 {
     public class FlumineHostConfig
     {
+        public Guid NodeId { get; set; }
+
         /// <summary>
         /// Gets the rest API endpoint of Flume host.
         /// </summary>
@@ -19,6 +23,12 @@
         public int KeepAliveInterval { get; set; }
 
         /// <summary>
+        /// Gets or sets the count of milliseconds since last successfull keep alive to wait before assuming node dead.
+        /// Default: 15000 ms.
+        /// </summary>
+        public int DeadNodeTimeout { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="FlumineHostConfig"/> class.
         /// </summary>
         /// <param name="endpoint">API endpoint of Flume host to use.</param>
@@ -28,6 +38,8 @@
             Endpoint = endpoint;
             SharesCount = sharesCount;
             KeepAliveInterval = 5000;
+            DeadNodeTimeout = 15000;
+            NodeId = Guid.NewGuid();
         }
     }
 }

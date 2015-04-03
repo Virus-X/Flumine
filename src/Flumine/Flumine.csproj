@@ -48,15 +48,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Api\ApiModule.cs" />
-    <Compile Include="Api\NodeStateResponse.cs" />
+    <Compile Include="Nancy\ApiClient.cs" />
+    <Compile Include="Nancy\ApiModule.cs" />
+    <Compile Include="Nancy\Model\ShareAssignmentModel.cs" />
+    <Compile Include="Nancy\NancyBootstraper.cs" />
+    <Compile Include="Nancy\Model\NodeStateModel.cs" />
     <Compile Include="Data\IDataStore.cs" />
     <Compile Include="Data\INodeDescriptor.cs" />
-    <Compile Include="Data\NodeDescriptor.cs" />
+    <Compile Include="Model\NodeDescriptor.cs" />
     <Compile Include="FlumineHost.cs" />
     <Compile Include="FlumineHostConfig.cs" />
     <Compile Include="IFlumineWorker.cs" />
     <Compile Include="Model\Node.cs" />
+    <Compile Include="Nancy\NancyExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Util\IServerClockProvider.cs" />
     <Compile Include="Util\ServerClock.cs" />
@@ -64,9 +68,7 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Api\Model\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

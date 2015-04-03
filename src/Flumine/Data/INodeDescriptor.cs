@@ -6,7 +6,7 @@ namespace Flumine.Data
     {
         Guid NodeId { get; }
 
-        string[] Endpoints { get; }
+        string Endpoint { get; }
 
         DateTime LastSeenAt { get; }
     }

@@ -40,7 +40,7 @@ namespace Flumine.Mongodb
 
             var update = Update<NodeDescriptor>
                 .Set(x => x.NodeId, node.NodeId)
-                .Set(x => x.Endpoints, node.Endpoints)
+                .Set(x => x.Endpoint, node.Endpoint)
                 .Set(x => x.LastSeenAt, node.LastSeenAt);
 
             var args = new FindAndModifyArgs
@@ -124,7 +124,7 @@ namespace Flumine.Mongodb
 
             public Guid NodeId { get; set; }
 
-            public string[] Endpoints { get; set; }
+            public string Endpoint { get; set; }
 
             public DateTime LastSeenAt { get; set; }
 
@@ -136,7 +136,7 @@ namespace Flumine.Mongodb
             {
                 Id = GetId(descriptor.NodeId);
                 NodeId = descriptor.NodeId;
-                Endpoints = descriptor.Endpoints;
+                Endpoint = descriptor.Endpoint;
                 LastSeenAt = descriptor.LastSeenAt;
             }
 
