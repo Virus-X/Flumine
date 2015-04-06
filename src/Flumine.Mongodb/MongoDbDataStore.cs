@@ -41,7 +41,7 @@ namespace Flumine.Mongodb
             var update = Update<NodeDescriptor>
                 .Set(x => x.NodeId, node.NodeId)
                 .Set(x => x.Endpoint, node.Endpoint)
-                .Set(x => x.LastSeenAt, node.LastSeenAt);
+                .Set(x => x.LastSeenAt, ServerClock.ServerUtcNow);
 
             var args = new FindAndModifyArgs
             {
@@ -50,7 +50,8 @@ namespace Flumine.Mongodb
                 Upsert = true
             };
 
-            if (collection.FindAndModify(args).Ok)
+            var res = collection.FindAndModify(args);
+            if (res.Ok)
             {
                 masterId = node.NodeId;
                 return true;
@@ -82,7 +83,7 @@ namespace Flumine.Mongodb
             if (node.NodeId == masterId)
             {
                 collection.Update(
-                    GetIdQuery(masterId),
+                    GetIdQuery(MasterId),
                     Update<NodeDescriptor>.Set(x => x.LastSeenAt, now));
             }
         }

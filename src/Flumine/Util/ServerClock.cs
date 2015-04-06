@@ -8,6 +8,8 @@ namespace Flumine.Util
     /// </summary>
     public static class ServerClock
     {
+        private static readonly ILog Log = Logger.GetLoggerForDeclaringType();
+
         /// <summary>
         /// Difference in server and client times (Server - Client).
         /// Default = 0.
@@ -15,7 +17,7 @@ namespace Flumine.Util
         public static TimeSpan ClockDiff { get; private set; }
 
         static ServerClock()
-        {            
+        {
             ClockDiff = new TimeSpan(0);
         }
 
@@ -39,13 +41,14 @@ namespace Flumine.Util
             var bestDiff = provider.GetServerUtc().Subtract(DateTime.UtcNow);
             for (int i = 0; i < iterationsCount - 1; i++)
             {
-                var diff = provider.GetServerUtc().Subtract(DateTime.UtcNow);
+                var diff = provider.GetServerUtc().Subtract(DateTime.UtcNow);                
                 if (Math.Abs(diff.TotalMilliseconds) < Math.Abs(bestDiff.TotalMilliseconds))
-                {
+                {                    
                     bestDiff = diff;
                 }
             }
 
+            Log.DebugFormat("Clock sync finished. Diff: {0}", bestDiff);
             ClockDiff = bestDiff;
         }
     }

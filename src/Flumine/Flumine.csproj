@@ -30,6 +30,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="log4net">
+      <HintPath>..\..\..\..\YouSend\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
+    </Reference>
     <Reference Include="Nancy">
       <HintPath>..\packages\Nancy.1.1\lib\net40\Nancy.dll</HintPath>
     </Reference>
@@ -48,9 +51,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Nancy\ApiClient.cs" />
-    <Compile Include="Nancy\ApiModule.cs" />
-    <Compile Include="Nancy\Model\ShareAssignmentModel.cs" />
+    <Compile Include="FlumineMaster.cs" />
+    <Compile Include="Model\NodeMaster.cs" />
+    <Compile Include="Api\ApiClient.cs" />
+    <Compile Include="Api\ApiModule.cs" />
+    <Compile Include="Api\IMasterApi.cs" />
+    <Compile Include="Api\INodeApi.cs" />
+    <Compile Include="Nancy\Model\ShareAssignmentArgs.cs" />
     <Compile Include="Nancy\NancyBootstraper.cs" />
     <Compile Include="Nancy\Model\NodeStateModel.cs" />
     <Compile Include="Data\IDataStore.cs" />
@@ -62,8 +69,12 @@
     <Compile Include="Model\Node.cs" />
     <Compile Include="Nancy\NancyExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Util\ILog.cs" />
     <Compile Include="Util\IServerClockProvider.cs" />
+    <Compile Include="Util\Log4NetWrapper.cs" />
+    <Compile Include="Util\Logger.cs" />
     <Compile Include="Util\ServerClock.cs" />
+    <Compile Include="Util\SingleEntryTimer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

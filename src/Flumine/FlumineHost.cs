@@ -1,28 +1,39 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading;
 
+using Flumine.Api;
 using Flumine.Data;
 using Flumine.Model;
 using Flumine.Nancy;
+using Flumine.Nancy.Model;
+using Flumine.Util;
 
 using Nancy.Hosting.Self;
 
 namespace Flumine
 {
-    public class FlumineHost : IDisposable
+    public class FlumineHost : IDisposable, INodeApi, IMasterApi
     {
+        private static readonly ILog Log = Logger.GetLoggerForDeclaringType();
+
         private readonly FlumineHostConfig config;
         private readonly IDataStore dataStore;
         private readonly IFlumineWorker worker;
         private readonly NancyHost nancyHost;
 
         private readonly NodeDescriptor currentNode;
-        private readonly Timer lastSeenTimer;
+        private readonly SingleEntryTimer lastSeenTimer;
+
+        private NodeMaster nodeMaster;
 
         private bool isRunning;
 
-        private NodeDescriptor masterNode;
+        private FlumineMaster masterService;
+
+        public FlumineHostConfig Config
+        {
+            get { return config; }
+        }
 
         public FlumineHost(FlumineHostConfig config, IDataStore dataStore, IFlumineWorker worker)
         {
@@ -31,7 +42,7 @@ namespace Flumine
             this.worker = worker;
             nancyHost = new NancyHost(new Uri(config.Endpoint), new NancyBootstraper(this));
             currentNode = new NodeDescriptor(config);
-            lastSeenTimer = new Timer(OnLastSeenTimerTick);
+            lastSeenTimer = new SingleEntryTimer(OnLastSeenTimerTick, config.KeepAliveInterval);
         }
 
         #region Startup / Shutdown
@@ -41,8 +52,8 @@ namespace Flumine
             {
                 isRunning = true;
                 nancyHost.Start();
-                dataStore.Add(currentNode);
-                lastSeenTimer.Change(config.KeepAliveInterval, config.KeepAliveInterval);
+                JoinCluster();
+                lastSeenTimer.Start();
             }
         }
 
@@ -50,10 +61,10 @@ namespace Flumine
         {
             if (isRunning)
             {
-                nancyHost.Stop();
-                dataStore.Remove(currentNode);
-                lastSeenTimer.Change(Timeout.Infinite, Timeout.Infinite);
                 isRunning = false;
+                lastSeenTimer.Stop();
+                LeaveCluster();
+                nancyHost.Stop();
             }
         }
         #endregion
@@ -65,24 +76,45 @@ namespace Flumine
             return currentNode;
         }
 
-        public void AssignShares(IEnumerable<int> shares)
+        public void AssignShares(ShareAssignmentArgs shareAssignment)
         {
-            worker.AllocateShares(shares);
+            Log.DebugFormat("Allocating shares [{0}]", string.Join(",", shareAssignment.Shares));
+            worker.AllocateShares(shareAssignment.Shares);
+            currentNode.AddShares(shareAssignment.Shares);
+            Log.DebugFormat("Current shares: {0}", string.Join(",", currentNode.AssignedShares));
         }
 
-        public void ReleaseShares(IEnumerable<int> shares)
+        public void ReleaseShares(ShareAssignmentArgs shareAssignment)
         {
-            worker.ReleaseShares(shares);
+            Log.DebugFormat("Releasing shares [{0}]", string.Join(",", shareAssignment.Shares));
+            worker.ReleaseShares(shareAssignment.Shares);
+            currentNode.RemoveShares(shareAssignment.Shares);
+            Log.DebugFormat("Current shares: {0}", string.Join(",", currentNode.AssignedShares));
         }
 
-        public void ProcessShutdownNotification(Guid node, IEnumerable<int> ownedShares)
+        public void NotifyStartup(NodeDescriptor node)
         {
+            if (masterService == null)
+            {
+                throw new InvalidOperationException("Not a master");
+            }
 
+            masterService.NotifyStartup(node);
         }
 
-        public void ProcessStartupNotification(Guid node, string endpoint)
+        public void NotifyShutdown(NodeDescriptor node)
         {
+            if (masterService == null)
+            {
+                throw new InvalidOperationException("Not a master");
+            }
 
+            masterService.NotifyShutdown(node);
+        }
+
+        public bool IsAlive()
+        {
+            return true;
         }
 
         #endregion
@@ -92,39 +124,81 @@ namespace Flumine
             Stop();
             nancyHost.Dispose();
             lastSeenTimer.Dispose();
+            masterService.Dispose();
         }
 
         private void OnLastSeenTimerTick(object state)
         {
             dataStore.RefreshLastSeen(currentNode);
-            if (masterNode == null)
+
+            if (!nodeMaster.CheckIsAlive(config.DeadNodeTimeout))
             {
-                ResolveMaster();
+                Log.DebugFormat("Master node is dead");
+                nodeMaster = GetNodeMaster();
+                Log.DebugFormat("Master is {0}", nodeMaster);
             }
         }
 
-        private void ResolveMaster()
+        private NodeMaster GetNodeMaster()
         {
-            while (masterNode == null)
+            while (true)
             {
-                var master = dataStore.GetMaster();
-
-                if (master == null || new NodeDescriptor(master).IsDead(config.DeadNodeTimeout))
+                var node = dataStore.GetMaster();
+                if (node != null)
                 {
-                    // Master is dead?
-                    if (dataStore.TryTakeMasterRole(currentNode, config.DeadNodeTimeout))
+                    var master = new NodeMaster(new NodeDescriptor(node), new ApiClient(node.Endpoint), false);
+                    if (!master.IsDead(config.DeadNodeTimeout))
                     {
-                        // Took master role!
-                        masterNode = currentNode;
-                        return;
+                        return master;
                     }
                 }
-                else
+
+                if (dataStore.TryTakeMasterRole(currentNode, config.DeadNodeTimeout))
                 {
-                    masterNode = new NodeDescriptor(master);
+                    masterService = new FlumineMaster(this, dataStore);
+                    var master = new NodeMaster(currentNode, masterService, true);
+                    Log.DebugFormat("No master found. Declared myself master.");
+                    return master;
                 }
 
                 Thread.Sleep(1000);
+            }
+        }
+
+        private void JoinCluster()
+        {
+            dataStore.Add(currentNode);
+            nodeMaster = GetNodeMaster();
+
+            try
+            {
+                nodeMaster.NotifyStartup(currentNode);
+            }
+            catch (Exception ex)
+            {
+                Log.WarnFormat("Failed to notify about node startup: {0}", ex);
+            }
+
+            Log.DebugFormat("Joined cluster. Master is {0}", nodeMaster);
+        }
+
+        private void LeaveCluster()
+        {
+            try
+            {
+                GetNodeMaster().NotifyShutdown(currentNode);
+            }
+            catch (Exception ex)
+            {
+                Log.WarnFormat("Failed to notify about node startup: {0}", ex);
+            }
+
+            dataStore.Remove(currentNode);
+
+            if (masterService != null)
+            {
+                masterService.Dispose();
+                masterService = null;
             }
         }
     }
