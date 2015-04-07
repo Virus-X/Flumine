@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>flumine</id>
+    <version>$version$</version>    
+    <authors>Valeriy Goncharenko</authors>      
+    <projectUrl>https://github.com/Virus-X/Flumine</projectUrl>    
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Cluster workload distribution framework</description>    
+    <copyright>IntelliSoftware 2015</copyright>    
+  </metadata>
+</package>
