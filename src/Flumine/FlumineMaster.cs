@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 using Flumine.Api;
 using Flumine.Data;
@@ -25,6 +26,8 @@ namespace Flumine
         private readonly SingleEntryTimer processorTimer;
 
         private bool shouldReassignShares;
+
+        private bool masterInitialized;
 
         public FlumineMaster(FlumineHost host, IDataStore dataStore)
         {
@@ -88,7 +91,7 @@ namespace Flumine
         private void ProcessorTimerTick(object state)
         {
             RefreshNodeStates();
-            if (shouldReassignShares)
+            if (masterInitialized && shouldReassignShares)
             {
                 ReassignShares();
             }
@@ -96,31 +99,39 @@ namespace Flumine
 
         private void RefreshNodeStates()
         {
-            foreach (var node in clusterNodes.Values.ToList())
-            {
-                try
-                {
-                    node.RefreshState();
-                    if (node.IsDead)
-                    {
-                        if (node.AssignedShares.Any())
-                        {
-                            foreach (var share in node.AssignedShares)
-                            {
-                                freeShares.Add(share);
-                            }
-                        }
+            Parallel.ForEach(
+                clusterNodes.Values.ToList(),
+                node => node.RefreshState());
 
-                        shouldReassignShares = true;
-                        Log.DebugFormat("Removing dead node {0}", node);
-                        clusterNodes.Remove(node.Id);
-                        dataStore.Remove(node.Descriptor);
+            foreach (var node in clusterNodes.Values.Where(x => x.IsDead).ToList())
+            {
+                if (node.AssignedShares.Any())
+                {
+                    foreach (var share in node.AssignedShares)
+                    {
+                        freeShares.Add(share);
                     }
                 }
-                catch (Exception ex)
+
+                shouldReassignShares = true;
+                Log.DebugFormat("Removing dead node {0}", node);
+                clusterNodes.Remove(node.Id);
+                dataStore.Remove(node.Descriptor);
+            }
+
+            if (!masterInitialized && clusterNodes.Values.All(x => x.StateSynchronized))
+            {
+                foreach (var node in clusterNodes.Values.ToList())
                 {
-                    Log.DebugFormat("Failed to refresh node {0}: {1}", node, ex.Message);
+                    foreach (var share in node.AssignedShares)
+                    {
+                        freeShares.Remove(share);
+                    }
                 }
+
+                shouldReassignShares = true;
+                masterInitialized = true;
+                Log.DebugFormat("Master initialization complete");
             }
         }
 
@@ -192,7 +203,7 @@ namespace Flumine
             foreach (var node in dataStore.GetAllNodes().Select(x => new NodeDescriptor(x)))
             {
                 var value = node.NodeId == hostNode.NodeId
-                                 ? new Node(host.GetState(), host, host.Config)
+                                 ? new Node(hostNode, host, host.Config)
                                  : new Node(node, new ApiClient(node.Endpoint), host.Config);
 
                 clusterNodes.Add(node.NodeId, value);

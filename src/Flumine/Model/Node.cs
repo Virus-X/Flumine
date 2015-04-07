@@ -29,6 +29,8 @@ namespace Flumine.Model
 
         public DateTime LastSeen { get; private set; }
 
+        public bool StateSynchronized { get; private set; }
+
         public int SharesCount
         {
             get
@@ -54,6 +56,7 @@ namespace Flumine.Model
             Endpoint = descriptor.Endpoint;
             AssignedShares = new List<int>();
             LastSeen = DateTime.UtcNow;
+            StateSynchronized = false;
         }
 
         public void RefreshState()
@@ -68,6 +71,7 @@ namespace Flumine.Model
                     return;
                 }
 
+                StateSynchronized = true;
                 LastSeen = DateTime.UtcNow;
                 AssignedShares = new List<int>(state.AssignedShares ?? Enumerable.Empty<int>());
             }
