@@ -1,5 +1,7 @@
 ﻿using System;
 
+using Flumine.Model;
+
 namespace Flumine
 {
     public class FlumineHostConfig
@@ -40,6 +42,6 @@ namespace Flumine
             KeepAliveInterval = 5000;
             DeadNodeTimeout = 15000;
             NodeId = Guid.NewGuid();
-        }
+        }        
     }
 }

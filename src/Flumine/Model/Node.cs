@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Flumine.Api;
-using Flumine.Nancy.Model;
+using Flumine.Data;
 using Flumine.Util;
 
 namespace Flumine.Model
@@ -11,23 +11,11 @@ namespace Flumine.Model
     /// <summary>
     /// Represents worker node
     /// </summary>
-    public class Node
+    public class Node : NodeDescriptor
     {
         private static readonly ILog Log = Logger.GetLoggerForDeclaringType();
 
         private readonly INodeApi api;
-
-        private readonly FlumineHostConfig config;
-
-        public NodeDescriptor Descriptor { get; private set; }
-
-        public Guid Id { get; private set; }
-
-        public List<int> AssignedShares { get; private set; }
-
-        public string Endpoint { get; private set; }
-
-        public DateTime LastSeen { get; private set; }
 
         public bool StateSynchronized { get; private set; }
 
@@ -39,23 +27,10 @@ namespace Flumine.Model
             }
         }
 
-        public bool IsDead
+        public Node(INodeDescriptor descriptor, INodeApi api, FlumineHostConfig config)
+            : base(descriptor, config)
         {
-            get
-            {
-                return LastSeen.AddMilliseconds(config.DeadNodeTimeout) < DateTime.UtcNow;
-            }
-        }
-
-        public Node(NodeDescriptor descriptor, INodeApi api, FlumineHostConfig config)
-        {
-            this.api = api;
-            this.config = config;
-            Descriptor = descriptor;
-            Id = descriptor.NodeId;
-            Endpoint = descriptor.Endpoint;
-            AssignedShares = new List<int>();
-            LastSeen = DateTime.UtcNow;
+            this.api = api;            
             StateSynchronized = false;
         }
 
@@ -64,7 +39,7 @@ namespace Flumine.Model
             try
             {
                 var state = api.GetState();
-                if (state.NodeId != Id)
+                if (state.NodeId != NodeId)
                 {
                     // Different node id reported in state. That means that node record is obsolete.
                     LastSeen = DateTime.UtcNow.AddDays(-1);
@@ -77,39 +52,28 @@ namespace Flumine.Model
             }
             catch
             {
-                Log.DebugFormat("Failed to contact node {0}", Id.ToString("n"));
+                Log.DebugFormat("Failed to contact node {0}", this);
             }
         }
 
-        public void AssignShares(IEnumerable<int> shares)
+        public void AssignShares(Guid masterNodeId, IEnumerable<int> shares)
         {
-            var shareAssignment = new ShareAssignmentArgs(config.NodeId, shares);
+            var shareAssignment = new ShareAssignmentArgs(masterNodeId, shares);
             api.AssignShares(shareAssignment);
-            foreach (var shareId in shareAssignment.Shares)
-            {
-                if (!AssignedShares.Contains(shareId))
-                {
-                    AssignedShares.Add(shareId);
-                }
-            }
+            AddShares(shareAssignment.Shares);
         }
 
-        public List<int> ReleaseShares(int count)
+        public List<int> ReleaseShares(Guid masterNodeId, int count)
         {
             // Try to keep oldest assignments at this node.
             List<int> res = AssignedShares.AsEnumerable().Reverse().Take(count).ToList();
             if (res.Count > 0)
             {
-                api.ReleaseShares(new ShareAssignmentArgs(config.NodeId, res));
+                api.ReleaseShares(new ShareAssignmentArgs(masterNodeId, res));
                 AssignedShares.RemoveRange(AssignedShares.Count - res.Count, res.Count);
             }
 
             return res;
-        }
-
-        public override string ToString()
-        {
-            return string.Format("{0} [{1}] shares: [{2}]", Id.ToString("n"), Endpoint, string.Join(",", AssignedShares));
-        }
+        }        
     }
 }

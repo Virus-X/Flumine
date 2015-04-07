@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Flumine.Nancy.Model
+namespace Flumine.Model
 {
     public class ShareAssignmentArgs
     {

@@ -1,34 +1,25 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+﻿using System.IO;
 using System.Net;
 
-using Flumine.Api;
+using Flumine.Data;
 using Flumine.Model;
-using Flumine.Nancy.Model;
 
 using RestSharp;
 
-namespace Flumine.Nancy
+namespace Flumine.Api
 {
     public class ApiClient : IMasterApi, INodeApi
     {
         private readonly IRestClient client;
 
-        public ApiClient(string endpoint)
+        public ApiClient(INodeDescriptor descriptor)            
         {
-            client = new RestClient(endpoint);
-        }
+            client = new RestClient(descriptor.Endpoint);
+        }        
 
         public NodeDescriptor GetState()
         {
-            var res = Execute<NodeStateModel>(new RestRequest("state", Method.GET));
-            return new NodeDescriptor
-            {
-                Endpoint = res.Endpoint,
-                AssignedShares = new List<int>(res.AssignedShares ?? Enumerable.Empty<int>()),
-                NodeId = res.NodeId
-            };
+            return Execute<NodeDescriptor>(new RestRequest("state", Method.GET));
         }
 
         public void AssignShares(ShareAssignmentArgs shareAssignment)
@@ -43,12 +34,12 @@ namespace Flumine.Nancy
 
         public void NotifyStartup(NodeDescriptor node)
         {
-            Execute(new RestRequest("notifications/startup", Method.POST), new NodeStateModel(node));
+            Execute(new RestRequest("notifications/startup", Method.POST), node);
         }
 
         public void NotifyShutdown(NodeDescriptor node)
         {
-            Execute(new RestRequest("notifications/shutdown", Method.POST), new NodeStateModel(node));
+            Execute(new RestRequest("notifications/shutdown", Method.POST), node);
         }
 
         public bool IsAlive()

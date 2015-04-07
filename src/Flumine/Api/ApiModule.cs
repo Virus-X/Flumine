@@ -1,16 +1,15 @@
-﻿
-using Flumine.Nancy.Model;
+﻿using Flumine.Model;
 
 using Nancy;
 using Nancy.ModelBinding;
 
-namespace Flumine.Nancy
+namespace Flumine.Api
 {
     public class ApiModule : NancyModule
     {
         public ApiModule(FlumineHost host)
         {
-            Get["/state"] = _ => new NodeStateModel(host.GetState());
+            Get["/state"] = _ => host.LocalNode;
 
             Get["/ping"] = _ => true;
 
@@ -40,15 +39,13 @@ namespace Flumine.Nancy
 
             Post["/notifications/shutdown"] = _ =>
                 {
-                    var model = this.Bind<NodeStateModel>();
-                    host.NotifyShutdown(model.ToNodeDescriptor());
+                    host.NotifyShutdown(this.Bind<NodeDescriptor>());
                     return Response.Success();
                 };
 
             Post["/notifications/startup"] = _ =>
                 {
-                    var model = this.Bind<NodeStateModel>();
-                    host.NotifyStartup(model.ToNodeDescriptor());
+                    host.NotifyStartup(this.Bind<NodeDescriptor>());
                     return Response.Success();
                 };
         }

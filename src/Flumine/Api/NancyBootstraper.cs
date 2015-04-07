@@ -1,7 +1,7 @@
 ﻿using Nancy;
 using Nancy.TinyIoc;
 
-namespace Flumine.Nancy
+namespace Flumine.Api
 {
     public class NancyBootstraper : DefaultNancyBootstrapper
     {

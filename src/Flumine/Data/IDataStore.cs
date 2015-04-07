@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 
+using Flumine.Util;
+
 namespace Flumine.Data
 {
     public interface IDataStore
@@ -14,9 +16,9 @@ namespace Flumine.Data
         /// Tries to take master node to itself.
         /// </summary>
         /// <param name="node">Descriptor of current node.</param>
-        /// <param name="deadNodeTimeout">Minimum timeout of <see cref="INodeDescriptor.LastSeenAt"/> property to assume that current master is dead. </param>
+        /// <param name="deadNodeTimeout">Minimum timeout of <see cref="INodeDescriptor.LastSeen"/> property to assume that current master is dead. </param>
         /// <remarks>
-        /// It's very important to perform the check whether master is dead on single server (database), because out of sync clock can lead to unpredictable system states.
+        /// It's very important to perform the check whether master is to use <see cref="ServerClock"/>, because out of sync clock can lead to unpredictable system states.
         /// </remarks>
         /// <returns>True if master role successfully taken by node. False if another node already owns master role.</returns>
         bool TryTakeMasterRole(INodeDescriptor node, int deadNodeTimeout);
@@ -28,7 +30,7 @@ namespace Flumine.Data
         void LeaveMasterRole(INodeDescriptor node);
 
         /// <summary>
-        /// Updates <see cref="INodeDescriptor.LastSeenAt"/> with current timestamp.
+        /// Updates <see cref="INodeDescriptor.LastSeen"/> with current timestamp.
         /// </summary>
         /// <param name="node">Descriptor of current node.</param>
         void RefreshLastSeen(INodeDescriptor node);

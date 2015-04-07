@@ -8,6 +8,6 @@ namespace Flumine.Data
 
         string Endpoint { get; }
 
-        DateTime LastSeenAt { get; }
+        DateTime LastSeen { get; }
     }
 }

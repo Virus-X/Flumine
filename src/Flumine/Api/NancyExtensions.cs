@@ -1,6 +1,6 @@
 using Nancy;
 
-namespace Flumine.Nancy
+namespace Flumine.Api
 {
     public static class NancyExtensions
     {

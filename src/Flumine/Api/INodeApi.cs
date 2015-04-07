@@ -1,5 +1,4 @@
 ﻿using Flumine.Model;
-using Flumine.Nancy.Model;
 
 namespace Flumine.Api
 {

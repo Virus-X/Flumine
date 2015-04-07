@@ -25,7 +25,8 @@ namespace Flumine.Mongodb
 
         public INodeDescriptor GetMaster()
         {
-            return collection.FindOne(GetIdQuery(MasterId));
+            var node = collection.FindOne(GetIdQuery(MasterId));
+            return node == null ? null : node.ConvertTimeToLocal();
         }
 
         public bool TryTakeMasterRole(INodeDescriptor node, int deadNodeTimeout)
@@ -36,12 +37,12 @@ namespace Flumine.Mongodb
                 GetIdQuery(MasterId),
                 Query.Or(
                     Query<NodeDescriptor>.NotExists(x => x.NodeId),
-                    Query<NodeDescriptor>.LT(x => x.LastSeenAt, deadNodeTs)));
+                    Query<NodeDescriptor>.LT(x => x.LastSeen, deadNodeTs)));
 
             var update = Update<NodeDescriptor>
                 .Set(x => x.NodeId, node.NodeId)
                 .Set(x => x.Endpoint, node.Endpoint)
-                .Set(x => x.LastSeenAt, ServerClock.ServerUtcNow);
+                .Set(x => x.LastSeen, ServerClock.ServerUtcNow);
 
             var args = new FindAndModifyArgs
             {
@@ -78,20 +79,21 @@ namespace Flumine.Mongodb
             var now = ServerClock.ServerUtcNow;
             collection.Update(
                 GetIdQuery(node.NodeId),
-                Update<NodeDescriptor>.Set(x => x.LastSeenAt, now));
+                Update<NodeDescriptor>.Set(x => x.LastSeen, now));
 
             if (node.NodeId == masterId)
             {
                 collection.Update(
                     GetIdQuery(MasterId),
-                    Update<NodeDescriptor>.Set(x => x.LastSeenAt, now));
+                    Update<NodeDescriptor>.Set(x => x.LastSeen, now));
             }
         }
 
         public List<INodeDescriptor> GetAllNodes()
         {
-            return collection.FindAll()
-                .Where(x => x.Id != MasterId)
+            return collection.FindAll().Where(x => x.Id != MasterId)
+                .ToList()
+                .Select(node => node.ConvertTimeToLocal())
                 .Cast<INodeDescriptor>()
                 .ToList();
         }
@@ -121,13 +123,15 @@ namespace Flumine.Mongodb
 
         private class NodeDescriptor : INodeDescriptor
         {
+            private bool isLocalTime;
+
             public string Id { get; set; }
 
             public Guid NodeId { get; set; }
 
             public string Endpoint { get; set; }
 
-            public DateTime LastSeenAt { get; set; }
+            public DateTime LastSeen { get; set; }
 
             public NodeDescriptor()
             {
@@ -138,7 +142,29 @@ namespace Flumine.Mongodb
                 Id = GetId(descriptor.NodeId);
                 NodeId = descriptor.NodeId;
                 Endpoint = descriptor.Endpoint;
-                LastSeenAt = descriptor.LastSeenAt;
+                LastSeen = descriptor.LastSeen;
+            }
+
+            public NodeDescriptor ConvertTimeToLocal()
+            {
+                if (!isLocalTime)
+                {
+                    LastSeen = ServerClock.ToLocalUtc(LastSeen);
+                    isLocalTime = true;
+                }
+
+                return this;
+            }
+
+            public NodeDescriptor ConvertTimeToServer()
+            {
+                if (isLocalTime)
+                {
+                    LastSeen = ServerClock.ToServerUtc(LastSeen);
+                    isLocalTime = false;
+                }
+
+                return this;
             }
 
             public static string GetId(Guid nodeId)

@@ -2,56 +2,70 @@
 using System.Collections.Generic;
 
 using Flumine.Data;
-using Flumine.Util;
 
 namespace Flumine.Model
 {
     public class NodeDescriptor : INodeDescriptor
     {
-        public Guid NodeId { get; set; }
+        private readonly FlumineHostConfig config;
 
-        public string Endpoint { get; set; }
+        public Guid NodeId { get; protected set; }
 
-        public DateTime LastSeenAt { get; set; }
+        public string Endpoint { get; protected set; }
 
-        public List<int> AssignedShares { get; set; }
+        public DateTime LastSeen { get; protected set; }
+
+        public List<int> AssignedShares { get; protected set; }
+
+        public bool IsDead
+        {
+            get
+            {
+                return LastSeen.AddMilliseconds(config.DeadNodeTimeout) < DateTime.UtcNow;
+            }
+        }
 
         public NodeDescriptor()
         {
-            LastSeenAt = DateTime.UtcNow;
+            LastSeen = DateTime.UtcNow;
             AssignedShares = new List<int>();
-        }
-
-        public NodeDescriptor(INodeDescriptor descriptor)
-            : this()
-        {
-            NodeId = descriptor.NodeId;
-            Endpoint = descriptor.Endpoint;
-            LastSeenAt = descriptor.LastSeenAt;
         }
 
         public NodeDescriptor(FlumineHostConfig config)
             : this()
         {
+            this.config = config;
             NodeId = config.NodeId;
             Endpoint = config.Endpoint;
         }
 
-        public bool IsDead(int deadNodeTimeout)
+        public NodeDescriptor(INodeDescriptor descriptor, FlumineHostConfig config)
+            : this()
         {
-            return LastSeenAt.AddMilliseconds(deadNodeTimeout) < ServerClock.ServerUtcNow;
+            this.config = config;
+            NodeId = descriptor.NodeId;
+            Endpoint = descriptor.Endpoint;
+            LastSeen = descriptor.LastSeen;
         }
 
         public override string ToString()
         {
-            return string.Format("{0} [{1}]", NodeId.ToString("n"), Endpoint);
+            if (AssignedShares != null && AssignedShares.Count > 0)
+            {
+                return string.Format("{0} [{1}] shares: [{2}]", NodeId.ToString("n").Remove(8), Endpoint, string.Join(",", AssignedShares));
+            }
+
+            return string.Format("{0} [{1}]", NodeId.ToString("n").Remove(8), Endpoint);
         }
 
         public void AddShares(IEnumerable<int> shareIds)
         {
             foreach (var id in shareIds)
             {
-                AssignedShares.Add(id);
+                if (!AssignedShares.Contains(id))
+                {
+                    AssignedShares.Add(id);
+                }
             }
         }
 

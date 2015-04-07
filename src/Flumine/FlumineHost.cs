@@ -4,15 +4,13 @@ using System.Threading;
 using Flumine.Api;
 using Flumine.Data;
 using Flumine.Model;
-using Flumine.Nancy;
-using Flumine.Nancy.Model;
 using Flumine.Util;
 
 using Nancy.Hosting.Self;
 
 namespace Flumine
 {
-    public class FlumineHost : IDisposable, INodeApi, IMasterApi
+    public class FlumineHost : IDisposable, INodeApi
     {
         private static readonly ILog Log = Logger.GetLoggerForDeclaringType();
 
@@ -24,7 +22,7 @@ namespace Flumine
         private readonly NodeDescriptor currentNode;
         private readonly SingleEntryTimer lastSeenTimer;
 
-        private NodeMaster nodeMaster;
+        private MasterNode masterNode;
 
         private bool isRunning;
 
@@ -33,6 +31,11 @@ namespace Flumine
         public FlumineHostConfig Config
         {
             get { return config; }
+        }
+
+        public INodeDescriptor LocalNode
+        {
+            get { return currentNode; }
         }
 
         public FlumineHost(FlumineHostConfig config, IDataStore dataStore, IFlumineWorker worker)
@@ -81,7 +84,7 @@ namespace Flumine
             Log.DebugFormat("Allocating shares [{0}]", string.Join(",", shareAssignment.Shares));
             worker.AllocateShares(shareAssignment.Shares);
             currentNode.AddShares(shareAssignment.Shares);
-            Log.DebugFormat("Current shares: {0}", string.Join(",", currentNode.AssignedShares));
+            Log.InfoFormat("Current shares: [{0}]", string.Join(",", currentNode.AssignedShares));
         }
 
         public void ReleaseShares(ShareAssignmentArgs shareAssignment)
@@ -89,7 +92,7 @@ namespace Flumine
             Log.DebugFormat("Releasing shares [{0}]", string.Join(",", shareAssignment.Shares));
             worker.ReleaseShares(shareAssignment.Shares);
             currentNode.RemoveShares(shareAssignment.Shares);
-            Log.DebugFormat("Current shares: {0}", string.Join(",", currentNode.AssignedShares));
+            Log.InfoFormat("Current shares: [{0}]", string.Join(",", currentNode.AssignedShares));
         }
 
         public void NotifyStartup(NodeDescriptor node)
@@ -112,11 +115,6 @@ namespace Flumine
             masterService.NotifyShutdown(node);
         }
 
-        public bool IsAlive()
-        {
-            return true;
-        }
-
         #endregion
 
         public void Dispose()
@@ -131,23 +129,23 @@ namespace Flumine
         {
             dataStore.RefreshLastSeen(currentNode);
 
-            if (!nodeMaster.CheckIsAlive(config.DeadNodeTimeout))
+            if (!masterNode.CheckIsAlive())
             {
                 Log.DebugFormat("Master node is dead");
-                nodeMaster = GetNodeMaster();
-                Log.DebugFormat("Master is {0}", nodeMaster);
+                masterNode = GetNodeMaster();
+                Log.DebugFormat("Master is {0}", masterNode);
             }
         }
 
-        private NodeMaster GetNodeMaster()
+        private MasterNode GetNodeMaster()
         {
             while (true)
             {
                 var node = dataStore.GetMaster();
                 if (node != null)
                 {
-                    var master = new NodeMaster(new NodeDescriptor(node), new ApiClient(node.Endpoint), false);
-                    if (!master.IsDead(config.DeadNodeTimeout))
+                    var master = new MasterNode(node, new ApiClient(node), config);
+                    if (!master.IsDead)
                     {
                         return master;
                     }
@@ -156,7 +154,7 @@ namespace Flumine
                 if (dataStore.TryTakeMasterRole(currentNode, config.DeadNodeTimeout))
                 {
                     masterService = new FlumineMaster(this, dataStore);
-                    var master = new NodeMaster(currentNode, masterService, true);
+                    var master = new MasterNode(currentNode, masterService, config);
                     Log.DebugFormat("No master found. Declared myself master.");
                     return master;
                 }
@@ -167,19 +165,21 @@ namespace Flumine
 
         private void JoinCluster()
         {
+            Log.InfoFormat("{0} is joining cluster", currentNode);
+
             dataStore.Add(currentNode);
-            nodeMaster = GetNodeMaster();
+            masterNode = GetNodeMaster();
 
             try
             {
-                nodeMaster.NotifyStartup(currentNode);
+                masterNode.NotifyStartup(currentNode);
             }
             catch (Exception ex)
             {
-                Log.WarnFormat("Failed to notify about node startup: {0}", ex);
+                Log.WarnFormat("Failed to notify about node startup: {0}", ex.Message);
             }
 
-            Log.DebugFormat("Joined cluster. Master is {0}", nodeMaster);
+            Log.DebugFormat("Joined cluster. Master is {0}", masterNode);
         }
 
         private void LeaveCluster()
@@ -190,7 +190,7 @@ namespace Flumine
             }
             catch (Exception ex)
             {
-                Log.WarnFormat("Failed to notify about node startup: {0}", ex);
+                Log.WarnFormat("Failed to notify about node shutdown: {0}", ex.Message);
             }
 
             dataStore.Remove(currentNode);

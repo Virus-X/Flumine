@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Flumine.Api;
 using Flumine.Data;
 using Flumine.Model;
-using Flumine.Nancy;
 using Flumine.Util;
 
 namespace Flumine
@@ -25,6 +24,8 @@ namespace Flumine
 
         private readonly SingleEntryTimer processorTimer;
 
+        private readonly Guid nodeId;
+
         private bool shouldReassignShares;
 
         private bool masterInitialized;
@@ -33,6 +34,7 @@ namespace Flumine
         {
             this.host = host;
             this.dataStore = dataStore;
+            nodeId = host.Config.NodeId;
             clusterNodes = new Dictionary<Guid, Node>();
             freeShares = new HashSet<int>();
             LoadExistingNodes();
@@ -43,7 +45,7 @@ namespace Flumine
 
         public void Dispose()
         {
-            dataStore.LeaveMasterRole(host.GetState());
+            dataStore.LeaveMasterRole(host.LocalNode);
             processorTimer.Dispose();
         }
 
@@ -51,7 +53,7 @@ namespace Flumine
         {
             if (!clusterNodes.ContainsKey(node.NodeId))
             {
-                clusterNodes[node.NodeId] = new Node(node, new ApiClient(node.Endpoint), host.Config);
+                clusterNodes[node.NodeId] = new Node(node, new ApiClient(node), host.Config);
             }
 
             try
@@ -67,13 +69,14 @@ namespace Flumine
 
         public void NotifyShutdown(NodeDescriptor node)
         {
-            if (!clusterNodes.ContainsKey(node.NodeId))
+            Node clusterNode;
+            if (clusterNodes.TryGetValue(node.NodeId, out clusterNode))
             {
                 clusterNodes.Remove(node.NodeId);
 
-                if (node.AssignedShares.Any())
+                if (clusterNode.AssignedShares.Any())
                 {
-                    foreach (var share in node.AssignedShares)
+                    foreach (var share in clusterNode.AssignedShares)
                     {
                         freeShares.Add(share);
                     }
@@ -115,8 +118,8 @@ namespace Flumine
 
                 shouldReassignShares = true;
                 Log.DebugFormat("Removing dead node {0}", node);
-                clusterNodes.Remove(node.Id);
-                dataStore.Remove(node.Descriptor);
+                clusterNodes.Remove(node.NodeId);
+                dataStore.Remove(node);
             }
 
             if (!masterInitialized && clusterNodes.Values.All(x => x.StateSynchronized))
@@ -152,7 +155,7 @@ namespace Flumine
             {
                 try
                 {
-                    var shares = node.ReleaseShares(node.SharesCount - sharesPerNode);
+                    var shares = node.ReleaseShares(nodeId, node.SharesCount - sharesPerNode);
                     foreach (var s in shares)
                     {
                         freeShares.Add(s);
@@ -182,7 +185,7 @@ namespace Flumine
                     }
 
                     var shares = freeShares.Take(sharesPerNode - node.SharesCount).ToList();
-                    node.AssignShares(shares);
+                    node.AssignShares(nodeId, shares);
                     foreach (var s in shares)
                     {
                         freeShares.Remove(s);
@@ -199,14 +202,15 @@ namespace Flumine
 
         private void LoadExistingNodes()
         {
-            var hostNode = host.GetState();
-            foreach (var node in dataStore.GetAllNodes().Select(x => new NodeDescriptor(x)))
+            var hostNode = host.LocalNode;
+            foreach (var n in dataStore.GetAllNodes())
             {
-                var value = node.NodeId == hostNode.NodeId
+                var node = n.NodeId == hostNode.NodeId
                                  ? new Node(hostNode, host, host.Config)
-                                 : new Node(node, new ApiClient(node.Endpoint), host.Config);
+                                 : new Node(n, new ApiClient(n), host.Config);
 
-                clusterNodes.Add(node.NodeId, value);
+                clusterNodes.Add(n.NodeId, node);
+                Log.DebugFormat("Found node {0}", node);
             }
         }
     }
