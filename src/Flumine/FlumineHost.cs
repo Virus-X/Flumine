@@ -122,7 +122,11 @@ namespace Flumine
             Stop();
             nancyHost.Dispose();
             lastSeenTimer.Dispose();
-            masterService.Dispose();
+
+            if (masterService != null)
+            {
+                masterService.Dispose();
+            }
         }
 
         private void OnLastSeenTimerTick(object state)
