@@ -28,6 +28,16 @@ namespace Flumine
 
         private FlumineMaster masterService;
 
+        /// <summary>
+        /// Fires when current host becomes master.
+        /// </summary>
+        public event EventHandler MasterStarted;
+
+        /// <summary>
+        /// Fires when current host leaves master role.
+        /// </summary>
+        public event EventHandler MasterStopped;
+
         public FlumineHostConfig Config
         {
             get { return config; }
@@ -126,6 +136,7 @@ namespace Flumine
             if (masterService != null)
             {
                 masterService.Dispose();
+                OnMasterStopped();
             }
         }
 
@@ -160,6 +171,7 @@ namespace Flumine
                     masterService = new FlumineMaster(this, dataStore);
                     var master = new MasterNode(currentNode, masterService, config);
                     Log.DebugFormat("No master found. Declared myself master.");
+                    OnMasterStarted();
                     return master;
                 }
 
@@ -203,6 +215,25 @@ namespace Flumine
             {
                 masterService.Dispose();
                 masterService = null;
+                OnMasterStopped();
+            }
+        }
+
+        private void OnMasterStarted()
+        {
+            var ev = MasterStarted;
+            if (ev != null)
+            {
+                ev(this, EventArgs.Empty);
+            }
+        }
+
+        private void OnMasterStopped()
+        {
+            var ev = MasterStopped;
+            if (ev != null)
+            {
+                ev(this, EventArgs.Empty);
             }
         }
     }
