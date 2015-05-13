@@ -13,8 +13,8 @@ namespace Flumine.Api
         }
 
         protected override void ConfigureApplicationContainer(TinyIoCContainer container)
-        {            
-            base.ConfigureApplicationContainer(container);
+        {
+            container.Register<ApiModule>();            
             container.Register(host);
         }
     }
