@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Flumine.Data;
 
@@ -11,7 +12,7 @@ namespace Flumine.Model
 
         public Guid NodeId { get; protected set; }
 
-        public string Endpoint { get; protected set; }
+        public List<string> Endpoints { get; protected set; }
 
         public DateTime LastSeen { get; protected set; }
 
@@ -31,20 +32,17 @@ namespace Flumine.Model
             AssignedShares = new List<int>();
         }
 
-        public NodeDescriptor(FlumineHostConfig config)
+        public NodeDescriptor(Guid id, IEnumerable<string> endpoints, FlumineHostConfig config)
             : this()
         {
             this.config = config;
-            NodeId = config.NodeId;
-            Endpoint = config.Endpoint;
+            NodeId = id;
+            Endpoints = new List<string>(endpoints ?? Enumerable.Empty<string>());
         }
 
         public NodeDescriptor(INodeDescriptor descriptor, FlumineHostConfig config)
-            : this()
+            : this(descriptor.NodeId, descriptor.Endpoints, config)
         {
-            this.config = config;
-            NodeId = descriptor.NodeId;
-            Endpoint = descriptor.Endpoint;
             LastSeen = descriptor.LastSeen;
         }
 
@@ -52,10 +50,10 @@ namespace Flumine.Model
         {
             if (AssignedShares != null && AssignedShares.Count > 0)
             {
-                return string.Format("{0} [{1}] shares: [{2}]", NodeId.ToString("n").Remove(8), Endpoint, string.Join(",", AssignedShares));
+                return string.Format("{0} [{1}] shares: [{2}]", NodeId.ToString("n").Remove(8), string.Join(",", Endpoints), string.Join(",", AssignedShares));
             }
 
-            return string.Format("{0} [{1}]", NodeId.ToString("n").Remove(8), Endpoint);
+            return string.Format("{0} [{1}]", NodeId.ToString("n").Remove(8), string.Join(",", Endpoints));
         }
 
         public void AddShares(IEnumerable<int> shareIds)

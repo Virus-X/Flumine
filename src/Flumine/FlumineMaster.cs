@@ -30,11 +30,11 @@ namespace Flumine
 
         private bool masterInitialized;
 
-        public FlumineMaster(FlumineHost host, IDataStore dataStore)
+        public FlumineMaster(Guid nodeId, FlumineHost host, IDataStore dataStore)
         {
             this.host = host;
             this.dataStore = dataStore;
-            nodeId = host.Config.NodeId;
+            this.nodeId = nodeId;
             clusterNodes = new Dictionary<Guid, Node>();
             freeShares = new HashSet<int>();
             LoadExistingNodes();
@@ -54,6 +54,7 @@ namespace Flumine
             if (!clusterNodes.ContainsKey(node.NodeId))
             {
                 clusterNodes[node.NodeId] = new Node(node, new ApiClient(node), host.Config);
+                Log.InfoFormat("Registering node {0}", node);
             }
 
             try

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Flumine.Data
 {
@@ -6,7 +7,7 @@ namespace Flumine.Data
     {
         Guid NodeId { get; }
 
-        string Endpoint { get; }
+        List<string> Endpoints { get; }
 
         DateTime LastSeen { get; }
     }

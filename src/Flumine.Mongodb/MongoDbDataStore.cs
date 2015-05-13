@@ -5,6 +5,7 @@ using System.Linq;
 using Flumine.Data;
 using Flumine.Util;
 
+using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using MongoDB.Driver.Builders;
 
@@ -41,7 +42,7 @@ namespace Flumine.Mongodb
 
             var update = Update<NodeDescriptor>
                 .Set(x => x.NodeId, node.NodeId)
-                .Set(x => x.Endpoint, node.Endpoint)
+                .Set(x => x.Endpoints, node.Endpoints)
                 .Set(x => x.LastSeen, ServerClock.ServerUtcNow);
 
             var args = new FindAndModifyArgs
@@ -121,6 +122,7 @@ namespace Flumine.Mongodb
 
         #region Inner types
 
+        [BsonIgnoreExtraElements]
         private class NodeDescriptor : INodeDescriptor
         {
             private bool isLocalTime;
@@ -129,7 +131,7 @@ namespace Flumine.Mongodb
 
             public Guid NodeId { get; set; }
 
-            public string Endpoint { get; set; }
+            public List<string> Endpoints { get; set; }
 
             public DateTime LastSeen { get; set; }
 
@@ -141,7 +143,7 @@ namespace Flumine.Mongodb
             {
                 Id = GetId(descriptor.NodeId);
                 NodeId = descriptor.NodeId;
-                Endpoint = descriptor.Endpoint;
+                Endpoints = descriptor.Endpoints;
                 LastSeen = descriptor.LastSeen;
             }
 

@@ -1,17 +1,23 @@
 ﻿using System;
 
-using Flumine.Model;
-
 namespace Flumine
 {
     public class FlumineHostConfig
-    {
-        public Guid NodeId { get; set; }
-
+    {        
         /// <summary>
         /// Gets the rest API endpoint of Flume host.
         /// </summary>
         public string Endpoint { get; private set; }
+
+        /// <summary>
+        /// Gets the port range start for dynamic endpoint configuration.
+        /// </summary>
+        public int PortStart { get; private set; }
+
+        /// <summary>
+        /// Gets the port range end for dynamic endpoint configuration.
+        /// </summary>
+        public int PortEnd { get; private set; }
 
         /// <summary>
         /// Gets the total count of shares to distribute.
@@ -33,15 +39,39 @@ namespace Flumine
         /// <summary>
         /// Initializes a new instance of the <see cref="FlumineHostConfig"/> class.
         /// </summary>
-        /// <param name="endpoint">API endpoint of Flume host to use.</param>
+        /// <param name="endpoint">Fixed API endpoint of Flume host to use.</param>
         /// <param name="sharesCount">Total count of shares to distribute.</param>
         public FlumineHostConfig(string endpoint, int sharesCount)
         {
             Endpoint = endpoint;
             SharesCount = sharesCount;
             KeepAliveInterval = 5000;
-            DeadNodeTimeout = 15000;
-            NodeId = Guid.NewGuid();
-        }        
+            DeadNodeTimeout = 15000;            
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FlumineHostConfig"/> class.
+        /// </summary>
+        /// <param name="portStart"> The port range start for dynamic endpoint. </param>
+        /// <param name="portEnd"> The port range end for dynamic endpoint. </param>
+        /// <param name="sharesCount"> Total count of shares to distribute. </param>
+        public FlumineHostConfig(short portStart, short portEnd, int sharesCount)
+        {
+            if (portEnd < portStart)
+            {
+                throw new ArgumentException("Negative port range");
+            }
+
+            if (portStart == 0)
+            {
+                throw new ArgumentException("Port cannot be 0");
+            }
+
+            PortStart = portStart;
+            PortEnd = portEnd;
+            SharesCount = sharesCount;
+            KeepAliveInterval = 5000;
+            DeadNodeTimeout = 15000;            
+        }
     }
 }

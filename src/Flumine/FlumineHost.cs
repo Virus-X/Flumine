@@ -1,4 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 
 using Flumine.Api;
@@ -14,18 +18,16 @@ namespace Flumine
     {
         private static readonly ILog Log = Logger.GetLoggerForDeclaringType();
 
-        private readonly FlumineHostConfig config;
         private readonly IDataStore dataStore;
         private readonly IFlumineWorker worker;
-        private readonly NancyHost nancyHost;
 
-        private readonly NodeDescriptor currentNode;
         private readonly SingleEntryTimer lastSeenTimer;
 
+        private readonly NancyBootstraper bootstraper;
+
         private MasterNode masterNode;
-
+        private NancyHost nancyHost;        
         private bool isRunning;
-
         private FlumineMaster masterService;
 
         /// <summary>
@@ -38,24 +40,17 @@ namespace Flumine
         /// </summary>
         public event EventHandler MasterStopped;
 
-        public FlumineHostConfig Config
-        {
-            get { return config; }
-        }
+        public FlumineHostConfig Config { get; private set; }        
 
-        public INodeDescriptor LocalNode
-        {
-            get { return currentNode; }
-        }
+        public NodeDescriptor LocalNode { get; private set; }        
 
         public FlumineHost(FlumineHostConfig config, IDataStore dataStore, IFlumineWorker worker)
         {
-            this.config = config;
+            Config = config;
             this.dataStore = dataStore;
             this.worker = worker;
-            nancyHost = new NancyHost(new Uri(config.Endpoint), new NancyBootstraper(this));
-            currentNode = new NodeDescriptor(config);
             lastSeenTimer = new SingleEntryTimer(OnLastSeenTimerTick, config.KeepAliveInterval);
+            bootstraper = new NancyBootstraper(this);
         }
 
         #region Startup / Shutdown
@@ -64,7 +59,7 @@ namespace Flumine
             if (!isRunning)
             {
                 isRunning = true;
-                nancyHost.Start();
+                StartNancy();
                 JoinCluster();
                 lastSeenTimer.Start();
             }
@@ -86,23 +81,23 @@ namespace Flumine
 
         public NodeDescriptor GetState()
         {
-            return currentNode;
+            return LocalNode;
         }
 
         public void AssignShares(ShareAssignmentArgs shareAssignment)
         {
             Log.DebugFormat("Allocating shares [{0}]", string.Join(",", shareAssignment.Shares));
             worker.AllocateShares(shareAssignment.Shares);
-            currentNode.AddShares(shareAssignment.Shares);
-            Log.InfoFormat("Current shares: [{0}]", string.Join(",", currentNode.AssignedShares));
+            LocalNode.AddShares(shareAssignment.Shares);
+            Log.InfoFormat("Current shares: [{0}]", string.Join(",", LocalNode.AssignedShares));
         }
 
         public void ReleaseShares(ShareAssignmentArgs shareAssignment)
         {
             Log.DebugFormat("Releasing shares [{0}]", string.Join(",", shareAssignment.Shares));
             worker.ReleaseShares(shareAssignment.Shares);
-            currentNode.RemoveShares(shareAssignment.Shares);
-            Log.InfoFormat("Current shares: [{0}]", string.Join(",", currentNode.AssignedShares));
+            LocalNode.RemoveShares(shareAssignment.Shares);
+            Log.InfoFormat("Current shares: [{0}]", string.Join(",", LocalNode.AssignedShares));
         }
 
         public void NotifyStartup(NodeDescriptor node)
@@ -142,7 +137,7 @@ namespace Flumine
 
         private void OnLastSeenTimerTick(object state)
         {
-            dataStore.RefreshLastSeen(currentNode);
+            dataStore.RefreshLastSeen(LocalNode);
 
             if (!masterNode.CheckIsAlive())
             {
@@ -159,17 +154,17 @@ namespace Flumine
                 var node = dataStore.GetMaster();
                 if (node != null)
                 {
-                    var master = new MasterNode(node, new ApiClient(node), config);
+                    var master = new MasterNode(node, new ApiClient(node), Config);
                     if (!master.IsDead)
                     {
                         return master;
                     }
                 }
 
-                if (dataStore.TryTakeMasterRole(currentNode, config.DeadNodeTimeout))
+                if (dataStore.TryTakeMasterRole(LocalNode, Config.DeadNodeTimeout))
                 {
-                    masterService = new FlumineMaster(this, dataStore);
-                    var master = new MasterNode(currentNode, masterService, config);
+                    masterService = new FlumineMaster(LocalNode.NodeId, this, dataStore);
+                    var master = new MasterNode(LocalNode, masterService, Config);
                     Log.DebugFormat("No master found. Declared myself master.");
                     OnMasterStarted();
                     return master;
@@ -181,14 +176,14 @@ namespace Flumine
 
         private void JoinCluster()
         {
-            Log.InfoFormat("{0} is joining cluster", currentNode);
+            Log.InfoFormat("{0} is joining cluster", LocalNode);
 
-            dataStore.Add(currentNode);
+            dataStore.Add(LocalNode);
             masterNode = GetNodeMaster();
 
             try
             {
-                masterNode.NotifyStartup(currentNode);
+                masterNode.NotifyStartup(LocalNode);
             }
             catch (Exception ex)
             {
@@ -202,14 +197,14 @@ namespace Flumine
         {
             try
             {
-                GetNodeMaster().NotifyShutdown(currentNode);
+                GetNodeMaster().NotifyShutdown(LocalNode);
             }
             catch (Exception ex)
             {
                 Log.WarnFormat("Failed to notify about node shutdown: {0}", ex.Message);
             }
 
-            dataStore.Remove(currentNode);
+            dataStore.Remove(LocalNode);
 
             if (masterService != null)
             {
@@ -235,6 +230,59 @@ namespace Flumine
             {
                 ev(this, EventArgs.Empty);
             }
+        }
+
+        private void StartNancy()
+        {
+            if (!string.IsNullOrEmpty(Config.Endpoint))
+            {
+                Log.InfoFormat("Using endpoint: {0}", Config.Endpoint);
+                nancyHost = new NancyHost(new Uri(Config.Endpoint), bootstraper);
+                LocalNode = new NodeDescriptor(Guid.NewGuid(), new List<string> { Config.Endpoint }, Config);
+                nancyHost.Start();
+                return;
+            }
+
+            Log.InfoFormat("Starting dynamic endpoint allocation in port range {0}-{1}", Config.PortStart, Config.PortEnd);
+            for (int port = Config.PortStart; port <= Config.PortEnd; port++)
+            {
+                try
+                {
+                    nancyHost = new NancyHost(new Uri("http://localhost:" + port + "/"), bootstraper);
+                    nancyHost.Start();
+                    Log.InfoFormat("Successfull startup with port {0}", port);
+                    LocalNode = new NodeDescriptor(Guid.NewGuid(), GenerateEnpointDefinitions(port), Config);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Log.DebugFormat("Cannot bind to port {0}: {1}", port, ex.Message);
+                    if (nancyHost != null)
+                    {
+                        nancyHost.Stop();
+                        nancyHost = null;
+                    }
+                }
+            }
+
+            throw new HttpListenerException(0, "Failed to bind to any of provided ports");
+        }
+
+        private List<string> GenerateEnpointDefinitions(int port)
+        {
+            var ips = Dns.GetHostEntry(Dns.GetHostName())
+                    .AddressList.Where(ip => ip.AddressFamily == AddressFamily.InterNetwork)
+                    .Select(x => x.ToString());
+
+            List<string> endpoints = new List<string>();
+            foreach (var ip in ips)
+            {
+                var endpoint = string.Format("http://{0}:{1}/", ip, port);
+                endpoints.Add(endpoint);
+                Log.InfoFormat("Discovered endpoint address: {0}", endpoint);
+            }
+
+            return endpoints;
         }
     }
 }

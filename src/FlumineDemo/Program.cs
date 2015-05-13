@@ -14,14 +14,8 @@ namespace FlumineDemo
     {
         public static void Main(string[] args)
         {
-            XmlConfigurator.Configure(new FileInfo("log4net.config"));
-            var endpoint = "http://api.tracktor.dev:18081";
-            if (args.Length > 0)
-            {
-                endpoint = args[0];
-            }
-
-            var config = new FlumineHostConfig(endpoint, 8);
+            XmlConfigurator.Configure(new FileInfo("log4net.config"));           
+            var config = new FlumineHostConfig(13001, 13010, 8);
             var mongoUrl = MongoUrl.Create(ConfigurationManager.ConnectionStrings["mongo"].ConnectionString);
             var db = new MongoClient(mongoUrl).GetServer().GetDatabase(mongoUrl.DatabaseName);
 
