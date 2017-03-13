@@ -54,7 +54,7 @@ namespace Flumine
         {
             if (!clusterNodes.ContainsKey(node.NodeId))
             {
-                clusterNodes[node.NodeId] = new Node(node, new ApiClient(node), host.Config);
+                clusterNodes.TryAdd(node.NodeId, new Node(node, new ApiClient(node), host.Config));
                 Log.InfoFormat("Registering node {0}", node);
             }
 
