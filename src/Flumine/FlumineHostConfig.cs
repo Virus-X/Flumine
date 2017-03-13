@@ -1,9 +1,10 @@
-﻿using System;
+﻿using Flumine.Util;
+using System;
 
 namespace Flumine
 {
     public class FlumineHostConfig
-    {        
+    {
         /// <summary>
         /// Gets the rest API endpoint of Flume host.
         /// </summary>
@@ -36,6 +37,8 @@ namespace Flumine
         /// </summary>
         public int DeadNodeTimeout { get; set; }
 
+        public IServerClockProvider ServerClockProvider { get; set; }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="FlumineHostConfig"/> class.
         /// </summary>
@@ -46,7 +49,7 @@ namespace Flumine
             Endpoint = endpoint;
             SharesCount = sharesCount;
             KeepAliveInterval = 5000;
-            DeadNodeTimeout = 15000;            
+            DeadNodeTimeout = 15000;
         }
 
         /// <summary>
@@ -71,7 +74,7 @@ namespace Flumine
             PortEnd = portEnd;
             SharesCount = sharesCount;
             KeepAliveInterval = 5000;
-            DeadNodeTimeout = 15000;            
+            DeadNodeTimeout = 15000;
         }
     }
 }

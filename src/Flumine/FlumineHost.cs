@@ -25,8 +25,10 @@ namespace Flumine
 
         private readonly NancyBootstraper bootstraper;
 
+        private DateTime lastServerTimeSync;
+
         private MasterNode masterNode;
-        private NancyHost nancyHost;        
+        private NancyHost nancyHost;
         private bool isRunning;
         private FlumineMaster masterService;
 
@@ -40,9 +42,9 @@ namespace Flumine
         /// </summary>
         public event EventHandler MasterStopped;
 
-        public FlumineHostConfig Config { get; private set; }        
+        public FlumineHostConfig Config { get; private set; }
 
-        public NodeDescriptor LocalNode { get; private set; }        
+        public NodeDescriptor LocalNode { get; private set; }
 
         public FlumineHost(FlumineHostConfig config, IDataStore dataStore, IFlumineWorker worker)
         {
@@ -137,6 +139,11 @@ namespace Flumine
 
         private void OnLastSeenTimerTick(object state)
         {
+            if (Config.ServerClockProvider != null && lastServerTimeSync.AddHours(12) < ServerClock.ServerUtcNow)
+            {
+                ServerClock.Sync(Config.ServerClockProvider);
+            }
+
             dataStore.RefreshLastSeen(LocalNode);
 
             if (!masterNode.CheckIsAlive())

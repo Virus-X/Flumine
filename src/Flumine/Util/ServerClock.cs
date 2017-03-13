@@ -38,18 +38,26 @@ namespace Flumine.Util
 
         public static void Sync(IServerClockProvider provider, int iterationsCount = 10)
         {
-            var bestDiff = provider.GetServerUtc().Subtract(DateTime.UtcNow);
-            for (int i = 0; i < iterationsCount - 1; i++)
+            try
             {
-                var diff = provider.GetServerUtc().Subtract(DateTime.UtcNow);                
-                if (Math.Abs(diff.TotalMilliseconds) < Math.Abs(bestDiff.TotalMilliseconds))
-                {                    
-                    bestDiff = diff;
+                var bestDiff = provider.GetServerUtc().Subtract(DateTime.UtcNow);
+                for (int i = 0; i < iterationsCount - 1; i++)
+                {
+                    var diff = provider.GetServerUtc().Subtract(DateTime.UtcNow);
+                    if (Math.Abs(diff.TotalMilliseconds) < Math.Abs(bestDiff.TotalMilliseconds))
+                    {
+                        bestDiff = diff;
+                    }
                 }
-            }
 
-            Log.DebugFormat("Clock sync finished. Diff: {0}", bestDiff);
-            ClockDiff = bestDiff;
+                Log.DebugFormat("Clock sync finished. Diff: {0}", bestDiff);
+                ClockDiff = bestDiff;
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorFormat("Clock sync failed: {0}. Setting diff to 0", ex.Message);
+                ClockDiff = new TimeSpan(0);
+            }
         }
     }
 }
