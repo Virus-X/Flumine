@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,7 +19,7 @@ namespace Flumine
 
         private readonly IDataStore dataStore;
 
-        private readonly Dictionary<Guid, Node> clusterNodes;
+        private readonly ConcurrentDictionary<Guid, Node> clusterNodes;
 
         private readonly HashSet<int> freeShares;
 
@@ -35,7 +36,7 @@ namespace Flumine
             this.host = host;
             this.dataStore = dataStore;
             this.nodeId = nodeId;
-            clusterNodes = new Dictionary<Guid, Node>();
+            clusterNodes = new ConcurrentDictionary<Guid, Node>();
             freeShares = new HashSet<int>();
             LoadExistingNodes();
             freeShares = new HashSet<int>(Enumerable.Range(0, host.Config.SharesCount));
@@ -71,10 +72,8 @@ namespace Flumine
         public void NotifyShutdown(NodeDescriptor node)
         {
             Node clusterNode;
-            if (clusterNodes.TryGetValue(node.NodeId, out clusterNode))
+            if (clusterNodes.TryRemove(node.NodeId, out clusterNode))
             {
-                clusterNodes.Remove(node.NodeId);
-
                 if (clusterNode.AssignedShares.Any())
                 {
                     foreach (var share in clusterNode.AssignedShares)
@@ -119,7 +118,11 @@ namespace Flumine
 
                 shouldReassignShares = true;
                 Log.DebugFormat("Removing dead node {0}", node);
-                clusterNodes.Remove(node.NodeId);
+
+                Node deadNode;
+                clusterNodes.TryRemove(node.NodeId, out deadNode);
+
+                // TODO !!! problem. We are going to remove another node without checking whether it's "alive" in DB.
                 dataStore.Remove(node);
             }
 
@@ -204,14 +207,20 @@ namespace Flumine
         private void LoadExistingNodes()
         {
             var hostNode = host.LocalNode;
+            var node = new Node(hostNode, host, host.Config);
+            clusterNodes.TryAdd(hostNode.NodeId, node);
+            Log.DebugFormat("Added self {0}", node);
+
             foreach (var n in dataStore.GetAllNodes())
             {
-                var node = n.NodeId == hostNode.NodeId
-                                 ? new Node(hostNode, host, host.Config)
-                                 : new Node(n, new ApiClient(n), host.Config);
-
-                clusterNodes.Add(n.NodeId, node);
-                Log.DebugFormat("Found node {0}", node);
+                if (n.NodeId != hostNode.NodeId)
+                {
+                    node = new Node(n, new ApiClient(n), host.Config);
+                    if (clusterNodes.TryAdd(n.NodeId, node))
+                    {
+                        Log.DebugFormat("Found node {0}", node);
+                    }
+                }
             }
         }
     }
