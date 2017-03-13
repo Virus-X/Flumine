@@ -22,9 +22,11 @@ namespace Flumine.Model
         {
             get
             {
-                return LastSeen.AddMilliseconds(config.DeadNodeTimeout) < DateTime.UtcNow;
+                return !IsLocal && LastSeen.AddMilliseconds(config.DeadNodeTimeout) < DateTime.UtcNow;
             }
         }
+
+        public bool IsLocal { get; private set; }
 
         public NodeDescriptor()
         {
@@ -32,16 +34,17 @@ namespace Flumine.Model
             AssignedShares = new List<int>();
         }
 
-        public NodeDescriptor(Guid id, IEnumerable<string> endpoints, FlumineHostConfig config)
+        public NodeDescriptor(Guid id, IEnumerable<string> endpoints, FlumineHostConfig config, bool isLocalNode)
             : this()
         {
             this.config = config;
             NodeId = id;
+            IsLocal = isLocalNode;
             Endpoints = new List<string>(endpoints ?? Enumerable.Empty<string>());
         }
 
-        public NodeDescriptor(INodeDescriptor descriptor, FlumineHostConfig config)
-            : this(descriptor.NodeId, descriptor.Endpoints, config)
+        public NodeDescriptor(INodeDescriptor descriptor, FlumineHostConfig config, bool isLocalNode = false)
+            : this(descriptor.NodeId, descriptor.Endpoints, config, isLocalNode)
         {
             LastSeen = descriptor.LastSeen;
         }

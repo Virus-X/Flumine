@@ -245,7 +245,7 @@ namespace Flumine
             {
                 Log.InfoFormat("Using endpoint: {0}", Config.Endpoint);
                 nancyHost = new NancyHost(new Uri(Config.Endpoint), bootstraper);
-                LocalNode = new NodeDescriptor(Guid.NewGuid(), new List<string> { Config.Endpoint }, Config);
+                LocalNode = new NodeDescriptor(Guid.NewGuid(), new List<string> { Config.Endpoint }, Config, true);
                 nancyHost.Start();
                 return;
             }
@@ -258,7 +258,7 @@ namespace Flumine
                     nancyHost = new NancyHost(new Uri("http://localhost:" + port + "/"), bootstraper);
                     nancyHost.Start();
                     Log.InfoFormat("Successfull startup with port {0}", port);
-                    LocalNode = new NodeDescriptor(Guid.NewGuid(), GenerateEnpointDefinitions(port), Config);
+                    LocalNode = new NodeDescriptor(Guid.NewGuid(), GenerateEnpointDefinitions(port), Config, true);
                     return;
                 }
                 catch (Exception ex)

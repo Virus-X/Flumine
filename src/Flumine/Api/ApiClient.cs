@@ -129,7 +129,7 @@ namespace Flumine.Api
                 throw new IOException("Cannot establish connection. All endpoints are unreachable.");
             }
 
-            client = new RestClient(endpoint);
+            client = new RestClient(endpoint) { Timeout = 1000 };
             return client;
         }
     }

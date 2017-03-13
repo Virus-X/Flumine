@@ -30,7 +30,7 @@ namespace Flumine.Model
         public Node(INodeDescriptor descriptor, INodeApi api, FlumineHostConfig config)
             : base(descriptor, config)
         {
-            this.api = api;            
+            this.api = api;
             StateSynchronized = false;
         }
 
@@ -41,6 +41,7 @@ namespace Flumine.Model
                 var state = api.GetState();
                 if (state.NodeId != NodeId)
                 {
+                    Log.WarnFormat("Expected to get node id {0} but got {1}. Marking data as obsolete", NodeId, state.NodeId);
                     // Different node id reported in state. That means that node record is obsolete.
                     LastSeen = DateTime.UtcNow.AddDays(-1);
                     return;
@@ -50,9 +51,9 @@ namespace Flumine.Model
                 LastSeen = DateTime.UtcNow;
                 AssignedShares = new List<int>(state.AssignedShares ?? Enumerable.Empty<int>());
             }
-            catch
+            catch(Exception ex)
             {
-                Log.DebugFormat("Failed to contact node {0}", this);
+                Log.DebugFormat("Failed to contact node {0}: {1}", this, ex.Message);
             }
         }
 
@@ -74,6 +75,6 @@ namespace Flumine.Model
             }
 
             return res;
-        }        
+        }
     }
 }

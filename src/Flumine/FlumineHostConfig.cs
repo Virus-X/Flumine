@@ -1,5 +1,5 @@
-﻿using Flumine.Util;
-using System;
+﻿using System;
+using Flumine.Util;
 
 namespace Flumine
 {
