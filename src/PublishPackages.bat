@@ -14,5 +14,5 @@ if /I "%c%" EQU "N" exit
 goto :choice
 
 :publish
-nuget.exe push bin\nuget\*.nupkg
+nuget.exe push bin\nuget\*.nupkg -Source https://api.nuget.org/v3/index.json
 pause
