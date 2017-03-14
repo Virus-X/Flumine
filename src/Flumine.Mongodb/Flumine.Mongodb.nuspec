@@ -7,6 +7,6 @@
     <projectUrl>https://github.com/Virus-X/Flumine</projectUrl>    
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>MongoDb datastore for Flumine</description>    
-    <copyright>IntelliSoftware 2015</copyright>    
+    <copyright>IntelliSoftware 2017</copyright>    
   </metadata>
 </package>
