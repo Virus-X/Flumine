@@ -139,9 +139,10 @@ namespace Flumine
 
         private void OnLastSeenTimerTick(object state)
         {
-            if (Config.ServerClockProvider != null && lastServerTimeSync.AddHours(12) < ServerClock.ServerUtcNow)
+            if (Config.ServerClockProvider != null && lastServerTimeSync.AddHours(12) < DateTime.UtcNow)
             {
                 ServerClock.Sync(Config.ServerClockProvider);
+                lastServerTimeSync = DateTime.UtcNow;
             }
 
             dataStore.RefreshLastSeen(LocalNode);
