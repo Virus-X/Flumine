@@ -191,7 +191,7 @@ namespace Flumine
 
             try
             {
-                masterNode.NotifyStartup(LocalNode);
+                Retry.Do(() => masterNode.NotifyStartup(LocalNode), TimeSpan.FromSeconds(10));
             }
             catch (Exception ex)
             {

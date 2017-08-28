@@ -86,7 +86,7 @@ namespace Flumine
             }
         }
 
-        public bool IsAlive()
+        public bool IsAlive(Guid id)
         {
             return true;
         }

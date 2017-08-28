@@ -14,8 +14,8 @@ namespace Flumine.Model
 
         public MasterNode(INodeDescriptor descriptor, IMasterApi api, FlumineHostConfig config)
             : base(descriptor, config)
-        {            
-            this.api = api;            
+        {
+            this.api = api;
         }
 
         public void NotifyStartup(NodeDescriptor node)
@@ -32,7 +32,7 @@ namespace Flumine.Model
         {
             try
             {
-                api.IsAlive();
+                api.IsAlive(NodeId);
                 LastSeen = DateTime.UtcNow;
             }
             catch (Exception)

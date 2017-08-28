@@ -59,6 +59,7 @@
     <Compile Include="Api\ApiModule.cs" />
     <Compile Include="Api\IMasterApi.cs" />
     <Compile Include="Api\INodeApi.cs" />
+    <Compile Include="Model\PingResponse.cs" />
     <Compile Include="Model\ShareAssignmentArgs.cs" />
     <Compile Include="Api\NancyBootstraper.cs" />
     <Compile Include="Data\IDataStore.cs" />
@@ -74,6 +75,7 @@
     <Compile Include="Util\IServerClockProvider.cs" />
     <Compile Include="Util\Log4NetWrapper.cs" />
     <Compile Include="Util\Logger.cs" />
+    <Compile Include="Util\Retry.cs" />
     <Compile Include="Util\ServerClock.cs" />
     <Compile Include="Util\SingleEntryTimer.cs" />
   </ItemGroup>

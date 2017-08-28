@@ -1,4 +1,5 @@
-﻿using Flumine.Model;
+﻿using System;
+using Flumine.Model;
 
 namespace Flumine.Api
 {
@@ -8,6 +9,6 @@ namespace Flumine.Api
 
         void NotifyShutdown(NodeDescriptor node);
 
-        bool IsAlive();
+        bool IsAlive(Guid id);
     }
 }

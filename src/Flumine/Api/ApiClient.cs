@@ -45,10 +45,10 @@ namespace Flumine.Api
             Execute(new RestRequest("notifications/shutdown", Method.POST), node);
         }
 
-        public bool IsAlive()
+        public bool IsAlive(Guid id)
         {
-            Execute(new RestRequest("ping", Method.GET));
-            return true;
+            var resp = Execute<PingResponse>(new RestRequest("ping", Method.GET));
+            return resp.Ok && resp.Id == id;
         }
 
         private static string DiscoverConnectableEndpoint(IEnumerable<string> endpoints)

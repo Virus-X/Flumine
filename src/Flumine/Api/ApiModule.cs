@@ -11,7 +11,12 @@ namespace Flumine.Api
         {
             Get["/state"] = _ => host.LocalNode;
 
-            Get["/ping"] = _ => true;
+            Get["/ping"] = _ =>
+                new PingResponse
+                {
+                    Ok = true,
+                    Id = host.LocalNode.NodeId
+                };
 
             Put["/shares"] = _ =>
                 {
