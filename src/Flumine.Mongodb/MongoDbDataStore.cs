@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-
 using Flumine.Data;
 using Flumine.Util;
 
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using MongoDB.Driver.Builders;
 
 namespace Flumine.Mongodb
 {
@@ -15,18 +13,18 @@ namespace Flumine.Mongodb
     {
         private const string MasterId = "MASTER";
 
-        private readonly MongoCollection<NodeDescriptor> collection;
+        private readonly IMongoCollection<NodeDescriptor> collection;
 
         private Guid masterId;
 
-        public MongoDbDataStore(MongoDatabase db, string collectionName)
+        public MongoDbDataStore(IMongoDatabase db, string collectionName)
         {
             collection = db.GetCollection<NodeDescriptor>(collectionName);
         }
 
         public INodeDescriptor GetMaster()
         {
-            var node = collection.FindOne(GetIdQuery(MasterId));
+            var node = collection.Find(x => x.Id == MasterId).FirstOrDefault();
             return node == null ? null : node.ConvertTimeToLocal();
         }
 
@@ -34,65 +32,66 @@ namespace Flumine.Mongodb
         {
             var deadNodeTs = ServerClock.ServerUtcNow.AddMilliseconds(-deadNodeTimeout);
 
-            var q = Query.And(
-                GetIdQuery(MasterId),
-                Query.Or(
-                    Query<NodeDescriptor>.NotExists(x => x.NodeId),
-                    Query<NodeDescriptor>.LT(x => x.LastSeen, deadNodeTs)));
+            var filter = Builders<NodeDescriptor>.Filter;
 
-            var update = Update<NodeDescriptor>
+            var q = filter.And(
+                filter.Eq(x => x.Id, MasterId),
+                filter.Or(
+                    filter.Exists(x => x.NodeId, false),
+                    filter.Lt(x => x.LastSeen, deadNodeTs)));
+
+            var update = Builders<NodeDescriptor>.Update
                 .Set(x => x.NodeId, node.NodeId)
                 .Set(x => x.Endpoints, node.Endpoints)
                 .Set(x => x.LastSeen, ServerClock.ServerUtcNow);
 
-            var args = new FindAndModifyArgs
+            try
             {
-                Query = q,
-                Update = update,
-                Upsert = true
-            };
+                var res = collection.FindOneAndUpdate(q, update,
+                    new FindOneAndUpdateOptions<NodeDescriptor, NodeDescriptor>
+                    {
+                        IsUpsert = true,
+                        ReturnDocument = ReturnDocument.After
+                    });
 
-            var res = collection.FindAndModify(args);
-            if (res.Ok)
-            {
                 masterId = node.NodeId;
                 return true;
             }
-
-            return false;
+            catch
+            {
+                return false;
+            }
         }
 
         public void LeaveMasterRole(INodeDescriptor node)
         {
-            var args = new FindAndRemoveArgs
-            {
-                Query = Query.And(
-                    GetIdQuery(MasterId),
-                    Query<NodeDescriptor>.EQ(x => x.NodeId, node.NodeId))
-            };
+            var filter = Builders<NodeDescriptor>.Filter;
+            var q = filter.And(
+                filter.Eq(x => x.Id, MasterId),
+                filter.Eq(x => x.NodeId, node.NodeId));
 
             masterId = Guid.Empty;
-            collection.FindAndRemove(args);
+            collection.FindOneAndDelete(q);
         }
 
         public void RefreshLastSeen(INodeDescriptor node)
         {
             var now = ServerClock.ServerUtcNow;
-            collection.Update(
-                GetIdQuery(node.NodeId),
-                Update<NodeDescriptor>.Set(x => x.LastSeen, now));
+            collection.UpdateOne(
+                x => x.Id == node.NodeId.ToString("n"),
+                Builders<NodeDescriptor>.Update.Set(x => x.LastSeen, now));
 
             if (node.NodeId == masterId)
             {
-                collection.Update(
-                    GetIdQuery(MasterId),
-                    Update<NodeDescriptor>.Set(x => x.LastSeen, now));
+                collection.UpdateOne(
+                    x => x.Id == MasterId,
+                    Builders<NodeDescriptor>.Update.Set(x => x.LastSeen, now));
             }
         }
 
         public List<INodeDescriptor> GetAllNodes()
         {
-            return collection.FindAll().Where(x => x.Id != MasterId)
+            return collection.Find(x => x.Id != MasterId)
                 .ToList()
                 .Select(node => node.ConvertTimeToLocal())
                 .Cast<INodeDescriptor>()
@@ -101,23 +100,13 @@ namespace Flumine.Mongodb
 
         public void Add(INodeDescriptor node)
         {
-            collection.Insert(new NodeDescriptor(node));
+            collection.InsertOne(new NodeDescriptor(node));
             RefreshLastSeen(node);
         }
 
         public void Remove(INodeDescriptor node)
         {
-            collection.Remove(GetIdQuery(node.NodeId));
-        }
-
-        private IMongoQuery GetIdQuery(string id)
-        {
-            return Query.EQ("_id", id);
-        }
-
-        private IMongoQuery GetIdQuery(Guid nodeId)
-        {
-            return Query.EQ("_id", NodeDescriptor.GetId(nodeId));
+            collection.DeleteOne(x => x.Id == node.NodeId.ToString("n"));
         }
 
         #region Inner types

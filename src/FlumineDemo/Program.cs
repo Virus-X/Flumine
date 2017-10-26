@@ -17,10 +17,10 @@ namespace FlumineDemo
             XmlConfigurator.Configure(new FileInfo("log4net.config"));           
             var config = new FlumineHostConfig(13001, 13010, 8);
             var mongoUrl = MongoUrl.Create(ConfigurationManager.ConnectionStrings["mongo"].ConnectionString);
-            var db = new MongoClient(mongoUrl).GetServer().GetDatabase(mongoUrl.DatabaseName);
+            var db = new MongoClient(mongoUrl).GetDatabase(mongoUrl.DatabaseName);
 
             // Highly recommended to sync internal clocks with central server or database
-            ServerClock.Sync(new MongoDbServerClockProvider(db));
+            ServerClock.Sync(new NtpServerClockProvider());
 
             using (var host = new FlumineHost(config, new MongoDbDataStore(db, "Flumine"), new Worker()))
             {
