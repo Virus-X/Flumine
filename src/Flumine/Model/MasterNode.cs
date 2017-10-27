@@ -32,8 +32,14 @@ namespace Flumine.Model
         {
             try
             {
-                api.IsAlive(NodeId);
-                LastSeen = DateTime.UtcNow;
+                var alive = api.IsAlive(NodeId);
+                if (!alive)
+                {
+                    return false;
+                }
+
+                MarkAlive();
+                return true;
             }
             catch (Exception)
             {

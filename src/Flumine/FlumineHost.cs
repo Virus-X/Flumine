@@ -187,15 +187,23 @@ namespace Flumine
             Log.InfoFormat("{0} is joining cluster", LocalNode);
 
             dataStore.Add(LocalNode);
-            masterNode = GetNodeMaster();
 
             try
             {
-                Retry.Do(() => masterNode.NotifyStartup(LocalNode), TimeSpan.FromSeconds(10));
+                Retry.Do(() =>
+                {
+                    masterNode = GetNodeMaster();
+                    if (!masterNode.CheckIsAlive())
+                    {
+                        throw new Exception("Master is not online");
+                    }
+
+                    masterNode.NotifyStartup(LocalNode);
+                }, TimeSpan.FromSeconds(3), 100);
             }
             catch (Exception ex)
             {
-                Log.WarnFormat("Failed to notify about node startup: {0}", ex.Message);
+                throw new Exception("Failed to join cluster within aloted time frame", ex);
             }
 
             Log.DebugFormat("Joined cluster. Master is {0}", masterNode);

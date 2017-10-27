@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Flumine.Data;
+using Flumine.Util;
 
 namespace Flumine.Model
 {
@@ -22,7 +23,7 @@ namespace Flumine.Model
         {
             get
             {
-                return !IsLocal && LastSeen.AddMilliseconds(config.DeadNodeTimeout) < DateTime.UtcNow;
+                return !IsLocal && LastSeen.AddMilliseconds(config.DeadNodeTimeout) < ServerClock.ServerUtcNow;
             }
         }
 
@@ -30,7 +31,7 @@ namespace Flumine.Model
 
         public NodeDescriptor()
         {
-            LastSeen = DateTime.UtcNow;
+            MarkAlive();
             AssignedShares = new List<int>();
         }
 
@@ -47,6 +48,16 @@ namespace Flumine.Model
             : this(descriptor.NodeId, descriptor.Endpoints, config, isLocalNode)
         {
             LastSeen = descriptor.LastSeen;
+        }
+
+        public void MarkAlive()
+        {
+            LastSeen = ServerClock.ServerUtcNow;
+        }
+
+        public void MarkDead()
+        {
+            LastSeen = DateTime.UtcNow.AddDays(-7);
         }
 
         public override string ToString()

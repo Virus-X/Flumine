@@ -72,6 +72,7 @@ namespace Flumine.Api
                 }
                 catch
                 {
+                    // Can't connect =(
                 }
             }
 

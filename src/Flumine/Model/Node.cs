@@ -43,15 +43,15 @@ namespace Flumine.Model
                 {
                     Log.WarnFormat("Expected to get node id {0} but got {1}. Marking data as obsolete", NodeId, state.NodeId);
                     // Different node id reported in state. That means that node record is obsolete.
-                    LastSeen = DateTime.UtcNow.AddDays(-1);
+                    MarkDead();
                     return;
                 }
 
                 StateSynchronized = true;
-                LastSeen = DateTime.UtcNow;
+                MarkAlive();
                 AssignedShares = new List<int>(state.AssignedShares ?? Enumerable.Empty<int>());
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Log.DebugFormat("Failed to contact node {0}: {1}", this, ex.Message);
             }
