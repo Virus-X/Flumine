@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Net;
-using System.Net.Sockets;
 
 namespace Flumine.Util
 {
@@ -60,7 +58,7 @@ namespace Flumine.Util
                 Log.ErrorFormat("Clock sync failed: {0}. Setting diff to 0", ex.Message);
                 ClockDiff = new TimeSpan(0);
             }
-        }       
+        }
     }
 
 }

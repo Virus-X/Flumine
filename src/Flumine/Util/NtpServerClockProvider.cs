@@ -1,7 +1,6 @@
 ﻿using System;
-using Flumine.Util;
 
-namespace Flumine.Mongodb
+namespace Flumine.Util
 {
     public class NtpServerClockProvider : IServerClockProvider
     {

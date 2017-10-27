@@ -79,6 +79,7 @@
     <Compile Include="Util\Log4NetWrapper.cs" />
     <Compile Include="Util\Logger.cs" />
     <Compile Include="Util\NtpClient.cs" />
+    <Compile Include="Util\NtpServerClockProvider.cs" />
     <Compile Include="Util\Retry.cs" />
     <Compile Include="Util\ServerClock.cs" />
     <Compile Include="Util\SingleEntryTimer.cs" />
