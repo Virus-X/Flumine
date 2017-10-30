@@ -37,7 +37,6 @@ namespace Flumine
             this.dataStore = dataStore;
             this.nodeId = nodeId;
             clusterNodes = new ConcurrentDictionary<Guid, Node>();
-            freeShares = new HashSet<int>();
             LoadExistingNodes();
             freeShares = new HashSet<int>(Enumerable.Range(0, host.Config.SharesCount));
             processorTimer = new SingleEntryTimer(ProcessorTimerTick, 2000);

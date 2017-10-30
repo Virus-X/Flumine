@@ -27,7 +27,7 @@ namespace Flumine
 
         private DateTime lastServerTimeSync;
 
-        private MasterNode masterNode;
+        private volatile MasterNode masterNode;
         private NancyHost nancyHost;
         private bool isRunning;
         private FlumineMaster masterService;
@@ -62,8 +62,8 @@ namespace Flumine
             {
                 isRunning = true;
                 StartNancy();
-                JoinCluster();
                 lastSeenTimer.Start();
+                JoinCluster();
             }
         }
 
@@ -147,7 +147,7 @@ namespace Flumine
 
             dataStore.RefreshLastSeen(LocalNode);
 
-            if (!masterNode.CheckIsAlive())
+            if (masterNode != null && !masterNode.CheckIsAlive())
             {
                 Log.DebugFormat("Master node is dead");
                 masterNode = GetNodeMaster();
@@ -184,6 +184,10 @@ namespace Flumine
 
         private void JoinCluster()
         {
+            Log.InfoFormat("Initial time sync");
+            ServerClock.Sync(Config.ServerClockProvider);
+            lastServerTimeSync = DateTime.UtcNow;
+
             Log.InfoFormat("{0} is joining cluster", LocalNode);
 
             dataStore.Add(LocalNode);
