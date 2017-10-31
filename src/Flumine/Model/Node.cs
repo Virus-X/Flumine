@@ -17,7 +17,9 @@ namespace Flumine.Model
 
         private readonly INodeApi api;
 
-        public bool StateSynchronized { get; private set; }
+        private volatile bool stateSynchronized;
+
+        public bool StateSynchronized { get { return stateSynchronized; } }
 
         public int SharesCount
         {
@@ -31,7 +33,7 @@ namespace Flumine.Model
             : base(descriptor, config)
         {
             this.api = api;
-            StateSynchronized = false;
+            stateSynchronized = false;
         }
 
         public void RefreshState()
@@ -47,9 +49,13 @@ namespace Flumine.Model
                     return;
                 }
 
-                StateSynchronized = true;
+                if (!stateSynchronized)
+                {
+                    AssignedShares = new List<int>(state.AssignedShares ?? Enumerable.Empty<int>());
+                    stateSynchronized = true;
+                }
+
                 MarkAlive();
-                AssignedShares = new List<int>(state.AssignedShares ?? Enumerable.Empty<int>());
             }
             catch (Exception ex)
             {

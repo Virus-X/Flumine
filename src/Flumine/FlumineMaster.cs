@@ -27,9 +27,9 @@ namespace Flumine
 
         private readonly Guid nodeId;
 
-        private bool shouldReassignShares;
+        private volatile bool shouldReassignShares;
 
-        private bool masterInitialized;
+        private volatile bool masterInitialized;
 
         public FlumineMaster(Guid nodeId, FlumineHost host, IDataStore dataStore)
         {
@@ -111,6 +111,7 @@ namespace Flumine
                 {
                     foreach (var share in node.AssignedShares)
                     {
+                        Log.InfoFormat("Share [{0}] is marked free", share);
                         freeShares.Add(share);
                     }
                 }
@@ -131,6 +132,7 @@ namespace Flumine
                 {
                     foreach (var share in node.AssignedShares)
                     {
+                        Log.InfoFormat("Share [{0}] is assigned to {1}", share, node);
                         freeShares.Remove(share);
                     }
                 }
@@ -146,7 +148,7 @@ namespace Flumine
             var nodes = clusterNodes.Values.ToList();
             if (!nodes.Any())
             {
-                Log.Debug("No healthy nodes available");
+                Log.Error("No healthy nodes available");
                 return;
             }
 
@@ -158,10 +160,12 @@ namespace Flumine
             {
                 try
                 {
+                    Log.DebugFormat("Asking {0} to release shares", node);
                     var shares = node.ReleaseShares(nodeId, node.SharesCount - sharesPerNode);
                     foreach (var s in shares)
                     {
                         freeShares.Add(s);
+                        Log.InfoFormat("Share [{0}] is marked free", s);
                     }
                 }
                 catch (Exception ex)
@@ -172,12 +176,13 @@ namespace Flumine
 
             if (freeShares.Count == 0)
             {
+                Log.DebugFormat("No unassigned shares found. Distribution finished");
                 shouldReassignShares = false;
                 return;
             }
 
             // 2. Redisribute shares among all nodes
-            var underloadedNodes = clusterNodes.Values.Where(x => x.SharesCount < sharesPerNode).OrderBy(x => x.SharesCount).ToList();
+            var underloadedNodes = clusterNodes.Values.OrderBy(x => x.SharesCount).ToList();
             foreach (var node in underloadedNodes)
             {
                 try
@@ -191,6 +196,7 @@ namespace Flumine
                     node.AssignShares(nodeId, shares);
                     foreach (var s in shares)
                     {
+                        Log.InfoFormat("Share [{0}] is assigned to {1}", s, node);
                         freeShares.Remove(s);
                     }
                 }
