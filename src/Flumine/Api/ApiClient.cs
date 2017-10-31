@@ -27,12 +27,18 @@ namespace Flumine.Api
 
         public void AssignShares(ShareAssignmentArgs shareAssignment)
         {
-            Execute(new RestRequest("shares", Method.PUT), shareAssignment);
+            Execute(new RestRequest("shares", Method.PUT)
+            {
+                Timeout = 60000
+            }, shareAssignment);
         }
 
         public void ReleaseShares(ShareAssignmentArgs shareAssignment)
         {
-            Execute(new RestRequest("shares", Method.DELETE), shareAssignment);
+            Execute(new RestRequest("shares", Method.DELETE)
+            {
+                Timeout = 60000
+            }, shareAssignment);
         }
 
         public void NotifyStartup(NodeDescriptor node)
